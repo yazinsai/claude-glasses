@@ -295,11 +295,23 @@ class SessionManager:
 
     def _determine_activity_status(self, session: ClaudeSession) -> SessionStatus:
         """Determine if running session is BUSY or IDLE."""
-        # Check file modification time
+        now = time.time()
+
+        # Check session file modification time (longer threshold for thinking)
         try:
             mtime = os.path.getmtime(session.session_file)
-            if time.time() - mtime < 3.0:
+            if now - mtime < 30.0:
                 return SessionStatus.BUSY
+        except OSError:
+            pass
+
+        # Check debug log for this session - updates during API calls/thinking
+        debug_log = Path.home() / ".claude" / "debug" / f"{session.session_id}.txt"
+        try:
+            if debug_log.exists():
+                debug_mtime = debug_log.stat().st_mtime
+                if now - debug_mtime < 30.0:
+                    return SessionStatus.BUSY
         except OSError:
             pass
 
